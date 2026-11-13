@@ -122,9 +122,6 @@ export function ytdlpBaseArgs(): string[] {
   const customClients = process.env.YTDLP_PLAYER_CLIENTS?.trim();
   if (customClients) {
     args.push("--extractor-args", `youtube:player_client=${customClients}`);
-  } else if (!cookiePath) {
-    // When no cookies, fallback to standard web clients
-    args.push("--extractor-args", "youtube:player_client=default,web_safari");
   }
 
   if (FFMPEG_PATH) args.push("--ffmpeg-location", FFMPEG_PATH);
@@ -259,7 +256,7 @@ export async function fetchRawInfo(
   signal?: AbortSignal,
 ): Promise<RawVideoInfo> {
   const { stdout, stderr, code } = await runYtdlp(
-    ["-J", "--skip-download", ...ytdlpBaseArgs(), url],
+    ["-J", "--skip-download", "--no-check-formats", ...ytdlpBaseArgs(), url],
     { signal, timeoutMs: 45_000 },
   );
 
