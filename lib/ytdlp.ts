@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { access, chmod, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import ffmpegStatic from "ffmpeg-static";
@@ -19,7 +19,7 @@ export const FFMPEG_PATH =
     : "";
 
 const PLAYER_CLIENTS =
-  process.env.YTDLP_PLAYER_CLIENTS?.trim() || "default,web_safari";
+  process.env.YTDLP_PLAYER_CLIENTS?.trim() || "android,ios,web,mweb";
 
 export class YtdlpError extends Error {
   code: string;
@@ -36,6 +36,37 @@ export class YtdlpError extends Error {
 let prepared: Promise<void> | null = null;
 let activeCookiesPath: string | null = null;
 
+export function resolveCookiesFile(): string | null {
+  if (activeCookiesPath && existsSync(activeCookiesPath)) return activeCookiesPath;
+  if (existsSync(COOKIES_TMP_PATH)) return COOKIES_TMP_PATH;
+
+  const base64Cookies = process.env.YOUTUBE_COOKIES_BASE64?.trim();
+  if (base64Cookies) {
+    try {
+      const decoded = Buffer.from(base64Cookies, "base64").toString("utf-8");
+      writeFileSync(COOKIES_TMP_PATH, decoded, "utf-8");
+      activeCookiesPath = COOKIES_TMP_PATH;
+      return COOKIES_TMP_PATH;
+    } catch (err) {
+      console.error("[ytdlp] Gagal menulis cookies dari YOUTUBE_COOKIES_BASE64:", err);
+    }
+  }
+
+  const customCookieFile = process.env.YTDLP_COOKIES_FILE?.trim();
+  if (customCookieFile && existsSync(path.resolve(customCookieFile))) {
+    activeCookiesPath = path.resolve(customCookieFile);
+    return activeCookiesPath;
+  }
+
+  const localCookies = path.join(process.cwd(), "cookies.txt");
+  if (existsSync(localCookies)) {
+    activeCookiesPath = localCookies;
+    return localCookies;
+  }
+
+  return null;
+}
+
 export function prepare(): Promise<void> {
   if (!prepared) {
     prepared = (async () => {
@@ -48,23 +79,8 @@ export function prepare(): Promise<void> {
         );
       }
 
-      // Check cookies from env or local file
-      const base64Cookies = process.env.YOUTUBE_COOKIES_BASE64?.trim();
-      const customCookieFile = process.env.YTDLP_COOKIES_FILE?.trim();
-
-      if (base64Cookies) {
-        try {
-          const decoded = Buffer.from(base64Cookies, "base64").toString("utf-8");
-          await writeFile(COOKIES_TMP_PATH, decoded, "utf-8");
-          activeCookiesPath = COOKIES_TMP_PATH;
-        } catch (err) {
-          console.error("[ytdlp] Gagal menulis cookies dari YOUTUBE_COOKIES_BASE64:", err);
-        }
-      } else if (customCookieFile && existsSync(path.resolve(customCookieFile))) {
-        activeCookiesPath = path.resolve(customCookieFile);
-      } else if (existsSync(path.join(process.cwd(), "cookies.txt"))) {
-        activeCookiesPath = path.join(process.cwd(), "cookies.txt");
-      }
+      // Check and resolve cookies
+      resolveCookiesFile();
 
       if (IS_WINDOWS) return;
       // Lambda zip archives occasionally lose the executable bit.
@@ -89,13 +105,7 @@ export function ytdlpBaseArgs(): string[] {
     `youtube:player_client=${PLAYER_CLIENTS}`,
   ];
 
-  const cookiePath =
-    activeCookiesPath ||
-    (existsSync(COOKIES_TMP_PATH) ? COOKIES_TMP_PATH : null) ||
-    (existsSync(path.join(process.cwd(), "cookies.txt"))
-      ? path.join(process.cwd(), "cookies.txt")
-      : null);
-
+  const cookiePath = resolveCookiesFile();
   if (cookiePath) {
     args.push("--cookies", cookiePath);
   }
