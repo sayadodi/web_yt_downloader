@@ -116,6 +116,10 @@ export function ytdlpBaseArgs(): string[] {
     "20",
     "--retries",
     "3",
+    "--js-runtimes",
+    "node",
+    "--remote-components",
+    "ejs:github",
   ];
 
   const cookiePath = resolveCookiesFile();
@@ -145,28 +149,32 @@ export type RunResult = {
   code: number;
 };
 
-export async function runYtdlp(
-  args: string[],
-  options: RunOptions = {},
-): Promise<RunResult> {
-  await prepare();
-
+export function getYtdlpEnv(): NodeJS.ProcessEnv {
   const nodeDir = path.dirname(process.execPath);
   const existingPath = process.env.PATH || "";
   const combinedPath = existingPath.includes(nodeDir)
     ? existingPath
     : `${nodeDir}${path.delimiter}${existingPath}`;
 
+  return {
+    ...process.env,
+    PATH: combinedPath,
+    // Keep yt-dlp from writing outside the ephemeral filesystem.
+    HOME: os.tmpdir(),
+    XDG_CACHE_HOME: path.join(os.tmpdir(), "yt-dlp-cache"),
+    PYTHONIOENCODING: "utf-8",
+  };
+}
+
+export async function runYtdlp(
+  args: string[],
+  options: RunOptions = {},
+): Promise<RunResult> {
+  await prepare();
+
   return new Promise<RunResult>((resolve, reject) => {
     const child = spawn(YTDLP_PATH, args, {
-      env: {
-        ...process.env,
-        PATH: combinedPath,
-        // Keep yt-dlp from writing outside the ephemeral filesystem.
-        HOME: os.tmpdir(),
-        XDG_CACHE_HOME: path.join(os.tmpdir(), "yt-dlp-cache"),
-        PYTHONIOENCODING: "utf-8",
-      },
+      env: getYtdlpEnv(),
       windowsHide: true,
     });
 
@@ -271,8 +279,6 @@ export async function fetchRawInfo(
       "-J",
       "--skip-download",
       "--no-check-formats",
-      "-f",
-      "bestaudio/best",
       ...ytdlpBaseArgs(),
       url,
     ],

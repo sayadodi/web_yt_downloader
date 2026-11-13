@@ -36,14 +36,21 @@ export function friendlyYtdlpError(stderr: string): string {
   if (text.includes("live event") || text.includes("is live") || text.includes("premieres")) {
     return "Live stream dan premiere tidak didukung.";
   }
-  if (text.includes("video unavailable") || text.includes("this video is unavailable") || text.includes("removed")) {
-    return "Video tidak tersedia atau sudah dihapus.";
+  if (
+    text.includes("video unavailable") ||
+    text.includes("this video is unavailable") ||
+    text.includes("video ini tidak tersedia") ||
+    text.includes("removed") ||
+    text.includes("has been terminated") ||
+    text.includes("no longer available")
+  ) {
+    return "Video ini tidak tersedia atau sudah dihapus di YouTube. Silakan gunakan link video YouTube yang lain.";
   }
   if (text.includes("unsupported url")) {
     return "Hanya link YouTube yang didukung.";
   }
   if (text.includes("requested format is not available")) {
-    return "Format audio yang diminta tidak tersedia untuk video ini.";
+    return "Format audio yang diminta tidak tersedia untuk video ini. Silakan coba link video YouTube yang lain.";
   }
 
   return "Gagal memproses video. Coba lagi.";

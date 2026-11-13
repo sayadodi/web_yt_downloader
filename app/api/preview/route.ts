@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { jsonResponse } from "@/lib/http";
 import { parseYouTubeUrl } from "@/lib/youtube-url";
-import { prepare, YTDLP_PATH, ytdlpBaseArgs } from "@/lib/ytdlp";
+import { getYtdlpEnv, prepare, YTDLP_PATH, ytdlpBaseArgs } from "@/lib/ytdlp";
 import { getQuota } from "@/lib/quota";
 
 export const runtime = "nodejs";
@@ -52,12 +52,7 @@ export async function GET(request: Request) {
   ];
 
   const child = spawn(YTDLP_PATH, args, {
-    env: {
-      ...process.env,
-      HOME: os.tmpdir(),
-      XDG_CACHE_HOME: path.join(os.tmpdir(), "yt-dlp-cache"),
-      PYTHONIOENCODING: "utf-8",
-    },
+    env: getYtdlpEnv(),
     windowsHide: true,
   });
 
