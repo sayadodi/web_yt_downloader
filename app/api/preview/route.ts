@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     ...ytdlpBaseArgs(),
     "--no-progress",
     "-f",
-    "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
+    "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
     "-o",
     "-",
     parsed.canonicalUrl,

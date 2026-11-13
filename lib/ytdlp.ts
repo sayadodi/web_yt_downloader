@@ -18,8 +18,6 @@ export const FFMPEG_PATH =
     ? ffmpegStatic
     : "";
 
-const PLAYER_CLIENTS =
-  process.env.YTDLP_PLAYER_CLIENTS?.trim() || "android,ios,web,mweb";
 
 export class YtdlpError extends Error {
   code: string;
@@ -114,13 +112,19 @@ export function ytdlpBaseArgs(): string[] {
     "20",
     "--retries",
     "3",
-    "--extractor-args",
-    `youtube:player_client=${PLAYER_CLIENTS}`,
   ];
 
   const cookiePath = resolveCookiesFile();
   if (cookiePath) {
     args.push("--cookies", cookiePath);
+  }
+
+  const customClients = process.env.YTDLP_PLAYER_CLIENTS?.trim();
+  if (customClients) {
+    args.push("--extractor-args", `youtube:player_client=${customClients}`);
+  } else if (!cookiePath) {
+    // When no cookies, fallback to standard web clients
+    args.push("--extractor-args", "youtube:player_client=default,web_safari");
   }
 
   if (FFMPEG_PATH) args.push("--ffmpeg-location", FFMPEG_PATH);

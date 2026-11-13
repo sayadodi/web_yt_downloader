@@ -210,7 +210,7 @@ export async function GET(request: Request) {
     ];
 
     if (spec.kind === "copy") {
-      args.push("-f", "bestaudio[ext=m4a]/bestaudio");
+      args.push("-f", "bestaudio[ext=m4a]/bestaudio/best");
     } else {
       args.push(
         "-f",
