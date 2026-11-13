@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { resolveCookiesFile } from "./ytdlp";
 
 export type QuotaInfo = {
   source: "vercel_api" | "internal_estimate";
@@ -20,6 +21,7 @@ export type QuotaInfo = {
     teamId?: string | null;
     usageStatus?: number;
     usageError?: string;
+    hasCookies?: boolean;
   };
   vercelDetails?: {
     cpuUsedHours?: number;
@@ -87,6 +89,7 @@ async function fetchVercelApiUsage(token: string): Promise<QuotaInfo | null> {
   lastDebugInfo = {
     hasToken: true,
     tokenLength: token.length,
+    hasCookies: Boolean(resolveCookiesFile()),
   };
 
   // 1. Verify user & resolve team via Vercel /v2/user
@@ -302,7 +305,10 @@ export async function getQuota(): Promise<QuotaInfo> {
       console.warn("[quota] Failed to fetch live Vercel usage, falling back:", err);
     }
   } else {
-    lastDebugInfo = { hasToken: false };
+    lastDebugInfo = {
+      hasToken: false,
+      hasCookies: Boolean(resolveCookiesFile()),
+    };
   }
 
   const limit = Math.max(

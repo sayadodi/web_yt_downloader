@@ -19,7 +19,7 @@ export function friendlyYtdlpError(stderr: string): string {
   const text = stderr.toLowerCase();
 
   if (text.includes("sign in to confirm") || text.includes("not a bot")) {
-    return "YouTube menolak permintaan ini. Coba lagi beberapa saat lagi.";
+    return "YouTube menolak permintaan ini (Bot Detection). Pastikan cookies YouTube sudah terhubung di Vercel.";
   }
   if (text.includes("private video")) {
     return "Video ini bersifat privat.";

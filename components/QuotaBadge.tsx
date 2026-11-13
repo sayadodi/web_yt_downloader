@@ -219,6 +219,20 @@ export default function QuotaBadge() {
               </div>
             ) : null}
 
+            {/* Status Cookies YouTube Bypass */}
+            <div className="flex items-center justify-between rounded-control border border-line/60 bg-surface/40 px-2.5 py-1.5 text-[11px]">
+              <span className="text-faint">Status Cookies YouTube:</span>
+              <span
+                className={`font-medium ${
+                  quota.debug?.hasCookies
+                    ? "text-accent"
+                    : "text-amber-400"
+                }`}
+              >
+                {quota.debug?.hasCookies ? "● Terhubung (Bypass Bot OK)" : "○ Belum terpasang"}
+              </span>
+            </div>
+
             <div className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted bg-surface/40 rounded p-2 border border-line/50">
               <Info size={13} className="shrink-0 mt-0.5 text-accent" />
               <span>
