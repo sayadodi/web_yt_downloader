@@ -221,8 +221,6 @@ export async function GET(request: Request) {
         "--audio-quality",
         `${spec.kbps}K`,
         "--embed-thumbnail",
-        "--convert-thumbnails",
-        "jpg",
         "--add-metadata",
       );
     }

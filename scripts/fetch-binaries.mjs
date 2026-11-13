@@ -5,7 +5,7 @@
  * Vercel's Linux build machines. yt-dlp's standalone builds embed their own
  * Python runtime, so no Python is required at runtime.
  */
-import { chmod, mkdir, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -47,6 +47,26 @@ async function main() {
   const dest = path.join(BIN_DIR, fileName);
 
   await mkdir(BIN_DIR, { recursive: true });
+
+  // Ensure ffmpeg from ffmpeg-static is also in BIN_DIR
+  try {
+    const ffmpegModule = await import("ffmpeg-static");
+    const ffmpegSrc = ffmpegModule.default || ffmpegModule;
+    if (typeof ffmpegSrc === "string" && (await exists(ffmpegSrc))) {
+      const ffmpegName = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
+      const ffmpegDest = path.join(BIN_DIR, ffmpegName);
+      if (!(await exists(ffmpegDest))) {
+        console.log(`[bin] copying ffmpeg to ${ffmpegDest} ...`);
+        await copyFile(ffmpegSrc, ffmpegDest);
+        if (process.platform !== "win32") {
+          await chmod(ffmpegDest, 0o755);
+        }
+        console.log(`[bin] ready ffmpeg: ${ffmpegDest}`);
+      }
+    }
+  } catch (err) {
+    console.warn("[bin] could not copy ffmpeg-static:", err.message);
+  }
 
   if (!FORCE && (await exists(dest))) {
     console.log(`[bin] yt-dlp already present (${asset}), skipping download`);

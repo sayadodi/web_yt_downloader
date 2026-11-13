@@ -48,6 +48,9 @@ export function friendlyYtdlpError(stderr: string): string {
   ) {
     return "Video ini tidak tersedia atau sudah dihapus di YouTube. Silakan gunakan link video YouTube yang lain.";
   }
+  if (text.includes("ffmpeg") || text.includes("ffprobe")) {
+    return "Engine konversi audio (ffmpeg) tidak ditemukan atau sedang dipersiapkan. Gunakan format M4A Original atau coba lagi.";
+  }
   if (text.includes("unsupported url")) {
     return "Hanya link YouTube yang didukung.";
   }

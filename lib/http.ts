@@ -49,7 +49,11 @@ export function errorResponse(error: unknown): Response {
     }
 
     return jsonResponse(
-      { error: error.message, code: error.code },
+      {
+        error: error.message,
+        code: error.code,
+        ...(error.stderr ? { details: error.stderr.slice(-2000) } : {}),
+      },
       502,
     );
   }

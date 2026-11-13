@@ -13,10 +13,17 @@ export const YTDLP_PATH = path.join(
   BIN_DIR,
   IS_WINDOWS ? "yt-dlp.exe" : "yt-dlp",
 );
-export const FFMPEG_PATH =
-  typeof ffmpegStatic === "string" && ffmpegStatic.length > 0
-    ? ffmpegStatic
-    : "";
+export function resolveFfmpegPath(): string {
+  const localBin = path.join(BIN_DIR, IS_WINDOWS ? "ffmpeg.exe" : "ffmpeg");
+  if (existsSync(localBin)) return localBin;
+
+  if (typeof ffmpegStatic === "string" && existsSync(ffmpegStatic)) {
+    return ffmpegStatic;
+  }
+  return "";
+}
+
+export const FFMPEG_PATH = resolveFfmpegPath();
 
 
 export class YtdlpError extends Error {
@@ -243,7 +250,8 @@ export function prepare(): Promise<void> {
       if (IS_WINDOWS) return;
       // Lambda zip archives occasionally lose the executable bit.
       await chmod(YTDLP_PATH, 0o755).catch(() => {});
-      if (FFMPEG_PATH) await chmod(FFMPEG_PATH, 0o755).catch(() => {});
+      const ffmpeg = resolveFfmpegPath();
+      if (ffmpeg) await chmod(ffmpeg, 0o755).catch(() => {});
     })();
   }
   return prepared;
@@ -275,7 +283,8 @@ export function ytdlpBaseArgs(): string[] {
     args.push("--extractor-args", `youtube:player_client=${customClients}`);
   }
 
-  if (FFMPEG_PATH) args.push("--ffmpeg-location", FFMPEG_PATH);
+  const ffmpeg = resolveFfmpegPath();
+  if (ffmpeg) args.push("--ffmpeg-location", ffmpeg);
 
   return args;
 }
