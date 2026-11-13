@@ -206,11 +206,18 @@ export default function QuotaBadge() {
                     Data ditarik langsung dari <strong>Vercel REST API</strong>. Kuota akan direset otomatis pada{" "}
                     <strong className="text-fg">{quota.resetDate}</strong>.
                   </>
+                ) : quota.debug?.hasToken === false ? (
+                  <>
+                    Variabel <code className="text-accent">VERCEL_API_TOKEN</code> belum aktif pada deployment ini. Silakan buka Vercel tab <strong>Deployments &gt; Redeploy</strong>.
+                  </>
+                ) : quota.debug?.usageError ? (
+                  <>
+                    Gagal memuat API Vercel: <span className="text-danger">{quota.debug.usageError}</span>
+                  </>
                 ) : (
                   <>
                     Estimasi aman batas gratis Vercel Hobby (4 jam CPU / ~1.200 lagu). Direset pada{" "}
-                    <strong className="text-fg">{quota.resetDate}</strong>. Hubungkan{" "}
-                    <code className="text-accent">VERCEL_API_TOKEN</code> untuk metrik live langsung dari akun Vercel.
+                    <strong className="text-fg">{quota.resetDate}</strong>.
                   </>
                 )}
               </span>

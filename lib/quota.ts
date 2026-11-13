@@ -12,6 +12,15 @@ export type QuotaInfo = {
   resetDate: string;
   monthLabel: string;
   isExhausted: boolean;
+  debug?: {
+    hasToken: boolean;
+    tokenLength?: number;
+    userStatus?: number;
+    username?: string;
+    teamId?: string | null;
+    usageStatus?: number;
+    usageError?: string;
+  };
   vercelDetails?: {
     cpuUsedHours?: number;
     cpuLimitHours?: number;
@@ -52,9 +61,9 @@ const MONTH_NAMES = [
   "Desember",
 ];
 
-// In-memory cache for Vercel API responses (1-minute TTL to stay under 60 req/min rate limit)
 let vercelCache: { at: number; data: QuotaInfo } | null = null;
 const VERCEL_CACHE_TTL_MS = 60 * 1000;
+let lastDebugInfo: NonNullable<QuotaInfo["debug"]> = { hasToken: false };
 
 function getMonthKey(now: Date): string {
   const year = now.getFullYear();
@@ -72,58 +81,87 @@ function getResetDateLabel(date: Date): string {
 }
 
 /**
- * Resolves the teamId if the user belongs to a Vercel team (e.g. sayadodi's projects).
- */
-async function resolveTeamId(token: string): Promise<string | null> {
-  if (process.env.VERCEL_TEAM_ID?.trim()) {
-    return process.env.VERCEL_TEAM_ID.trim();
-  }
-  try {
-    const res = await fetch("https://api.vercel.com/v2/user", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-    if (res.ok) {
-      const data = (await res.json()) as { user?: { defaultTeamId?: string } };
-      if (data?.user?.defaultTeamId) {
-        return data.user.defaultTeamId;
-      }
-    }
-  } catch (err) {
-    console.warn("[quota] Failed to resolve teamId from /v2/user:", err);
-  }
-  return null;
-}
-
-/**
  * Directly queries the official Vercel REST API for live account resource usage.
  */
 async function fetchVercelApiUsage(token: string): Promise<QuotaInfo | null> {
-  const teamId = await resolveTeamId(token);
-  const url = new URL("https://api.vercel.com/v2/usage");
-  if (teamId) url.searchParams.set("teamId", teamId);
+  lastDebugInfo = {
+    hasToken: true,
+    tokenLength: token.length,
+  };
 
-  let res = await fetch(url.toString(), {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    cache: "no-store",
-  });
-
-  // If request failed and teamId was used, try without teamId as fallback
-  if (!res.ok && teamId) {
-    const fallbackUrl = new URL("https://api.vercel.com/v2/usage");
-    const retryRes = await fetch(fallbackUrl.toString(), {
+  // 1. Verify user & resolve team
+  let teamId = process.env.VERCEL_TEAM_ID?.trim() || null;
+  let username = "";
+  try {
+    const userRes = await fetch("https://api.vercel.com/v2/user", {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
-    if (retryRes.ok) {
-      res = retryRes;
+    lastDebugInfo.userStatus = userRes.status;
+    if (userRes.ok) {
+      const userData = (await userRes.json()) as {
+        user?: { username?: string; defaultTeamId?: string };
+      };
+      username = userData?.user?.username || "";
+      lastDebugInfo.username = username;
+      if (!teamId && userData?.user?.defaultTeamId) {
+        teamId = userData.user.defaultTeamId;
+      }
+    } else {
+      const errText = await userRes.text().catch(() => "");
+      lastDebugInfo.usageError = `User verify failed (${userRes.status}): ${errText.slice(0, 200)}`;
+      return null;
+    }
+  } catch (err) {
+    lastDebugInfo.usageError = `User fetch error: ${err instanceof Error ? err.message : String(err)}`;
+    return null;
+  }
+
+  lastDebugInfo.teamId = teamId;
+
+  // 2. Query usage with multiple URL shapes
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const to = now.toISOString();
+
+  const urlCandidates: string[] = [];
+  if (teamId) {
+    urlCandidates.push(
+      `https://api.vercel.com/v2/usage?teamId=${encodeURIComponent(teamId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    );
+    urlCandidates.push(
+      `https://api.vercel.com/v2/usage?teamId=${encodeURIComponent(teamId)}`,
+    );
+  }
+  urlCandidates.push(
+    `https://api.vercel.com/v2/usage?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+  );
+  urlCandidates.push(`https://api.vercel.com/v2/usage`);
+
+  let res: Response | null = null;
+  let responseText = "";
+
+  for (const candidate of urlCandidates) {
+    try {
+      const candidateRes = await fetch(candidate, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      lastDebugInfo.usageStatus = candidateRes.status;
+      if (candidateRes.ok) {
+        res = candidateRes;
+        break;
+      } else {
+        responseText = await candidateRes.text().catch(() => "");
+      }
+    } catch (err) {
+      lastDebugInfo.usageError = err instanceof Error ? err.message : String(err);
     }
   }
 
-  if (!res.ok) {
-    console.warn("[quota] Vercel API returned status", res.status);
+  if (!res) {
+    lastDebugInfo.usageError = `Usage endpoint returned status ${lastDebugInfo.usageStatus}: ${responseText.slice(0, 250)}`;
+    console.warn("[quota]", lastDebugInfo.usageError);
     return null;
   }
 
@@ -177,7 +215,6 @@ async function fetchVercelApiUsage(token: string): Promise<QuotaInfo | null> {
     resetDate = `${endDate.getDate()} ${MONTH_NAMES[endDate.getMonth()]} ${endDate.getFullYear()}`;
     monthLabel = `${MONTH_NAMES[endDate.getMonth()]} ${endDate.getFullYear()}`;
   } else {
-    const now = new Date();
     resetDate = getResetDateLabel(now);
     monthLabel = getMonthLabel(now);
   }
@@ -191,6 +228,7 @@ async function fetchVercelApiUsage(token: string): Promise<QuotaInfo | null> {
     resetDate,
     monthLabel,
     isExhausted: remainingSongs <= 0 || usagePercent >= 100,
+    debug: lastDebugInfo,
     vercelDetails: {
       cpuUsedHours,
       cpuLimitHours,
@@ -272,7 +310,6 @@ async function incrLocalCount(key: string, amount: number): Promise<number> {
 }
 
 export async function getQuota(): Promise<QuotaInfo> {
-  // 1. Check if VERCEL_API_TOKEN is configured to pull real-time usage directly from Vercel
   const vercelToken = process.env.VERCEL_API_TOKEN?.trim();
   if (vercelToken) {
     const now = Date.now();
@@ -288,9 +325,10 @@ export async function getQuota(): Promise<QuotaInfo> {
     } catch (err) {
       console.warn("[quota] Failed to fetch live Vercel usage, falling back:", err);
     }
+  } else {
+    lastDebugInfo = { hasToken: false };
   }
 
-  // 2. Fallback to application-level quota tracker (Redis or local file)
   const limit = Math.max(
     1,
     Number(process.env.MONTHLY_SONG_LIMIT) || DEFAULT_MONTHLY_LIMIT,
@@ -320,11 +358,11 @@ export async function getQuota(): Promise<QuotaInfo> {
     resetDate: getResetDateLabel(now),
     monthLabel: getMonthLabel(now),
     isExhausted: remaining <= 0,
+    debug: lastDebugInfo,
   };
 }
 
 export async function incrementQuota(amount = 1): Promise<QuotaInfo> {
-  // Invalidate Vercel cache so subsequent request will query fresh or fallback
   vercelCache = null;
 
   const now = new Date();
