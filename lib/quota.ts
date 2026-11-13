@@ -72,19 +72,55 @@ function getResetDateLabel(date: Date): string {
 }
 
 /**
+ * Resolves the teamId if the user belongs to a Vercel team (e.g. sayadodi's projects).
+ */
+async function resolveTeamId(token: string): Promise<string | null> {
+  if (process.env.VERCEL_TEAM_ID?.trim()) {
+    return process.env.VERCEL_TEAM_ID.trim();
+  }
+  try {
+    const res = await fetch("https://api.vercel.com/v2/user", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { user?: { defaultTeamId?: string } };
+      if (data?.user?.defaultTeamId) {
+        return data.user.defaultTeamId;
+      }
+    }
+  } catch (err) {
+    console.warn("[quota] Failed to resolve teamId from /v2/user:", err);
+  }
+  return null;
+}
+
+/**
  * Directly queries the official Vercel REST API for live account resource usage.
  */
 async function fetchVercelApiUsage(token: string): Promise<QuotaInfo | null> {
-  const teamId = process.env.VERCEL_TEAM_ID?.trim();
+  const teamId = await resolveTeamId(token);
   const url = new URL("https://api.vercel.com/v2/usage");
   if (teamId) url.searchParams.set("teamId", teamId);
 
-  const res = await fetch(url.toString(), {
+  let res = await fetch(url.toString(), {
     headers: {
       Authorization: `Bearer ${token}`,
     },
     cache: "no-store",
   });
+
+  // If request failed and teamId was used, try without teamId as fallback
+  if (!res.ok && teamId) {
+    const fallbackUrl = new URL("https://api.vercel.com/v2/usage");
+    const retryRes = await fetch(fallbackUrl.toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (retryRes.ok) {
+      res = retryRes;
+    }
+  }
 
   if (!res.ok) {
     console.warn("[quota] Vercel API returned status", res.status);
