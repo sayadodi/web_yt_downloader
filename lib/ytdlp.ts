@@ -40,15 +40,28 @@ export function resolveCookiesFile(): string | null {
   if (activeCookiesPath && existsSync(activeCookiesPath)) return activeCookiesPath;
   if (existsSync(COOKIES_TMP_PATH)) return COOKIES_TMP_PATH;
 
+  // Support both raw plain-text cookies (YOUTUBE_COOKIES) and Base64 (YOUTUBE_COOKIES_BASE64)
+  const rawCookies = process.env.YOUTUBE_COOKIES?.trim();
   const base64Cookies = process.env.YOUTUBE_COOKIES_BASE64?.trim();
-  if (base64Cookies) {
+
+  let cookiesText = "";
+  if (rawCookies) {
+    cookiesText = rawCookies;
+  } else if (base64Cookies) {
     try {
-      const decoded = Buffer.from(base64Cookies, "base64").toString("utf-8");
-      writeFileSync(COOKIES_TMP_PATH, decoded, "utf-8");
+      cookiesText = Buffer.from(base64Cookies, "base64").toString("utf-8");
+    } catch (err) {
+      console.error("[ytdlp] Gagal mendekode YOUTUBE_COOKIES_BASE64:", err);
+    }
+  }
+
+  if (cookiesText) {
+    try {
+      writeFileSync(COOKIES_TMP_PATH, cookiesText, "utf-8");
       activeCookiesPath = COOKIES_TMP_PATH;
       return COOKIES_TMP_PATH;
     } catch (err) {
-      console.error("[ytdlp] Gagal menulis cookies dari YOUTUBE_COOKIES_BASE64:", err);
+      console.error("[ytdlp] Gagal menulis cookies ke COOKIES_TMP_PATH:", err);
     }
   }
 
