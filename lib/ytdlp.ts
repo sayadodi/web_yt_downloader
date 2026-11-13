@@ -151,10 +151,17 @@ export async function runYtdlp(
 ): Promise<RunResult> {
   await prepare();
 
+  const nodeDir = path.dirname(process.execPath);
+  const existingPath = process.env.PATH || "";
+  const combinedPath = existingPath.includes(nodeDir)
+    ? existingPath
+    : `${nodeDir}${path.delimiter}${existingPath}`;
+
   return new Promise<RunResult>((resolve, reject) => {
     const child = spawn(YTDLP_PATH, args, {
       env: {
         ...process.env,
+        PATH: combinedPath,
         // Keep yt-dlp from writing outside the ephemeral filesystem.
         HOME: os.tmpdir(),
         XDG_CACHE_HOME: path.join(os.tmpdir(), "yt-dlp-cache"),
@@ -260,7 +267,15 @@ export async function fetchRawInfo(
   signal?: AbortSignal,
 ): Promise<RawVideoInfo> {
   const { stdout, stderr, code } = await runYtdlp(
-    ["-J", "--skip-download", "--no-check-formats", ...ytdlpBaseArgs(), url],
+    [
+      "-J",
+      "--skip-download",
+      "--no-check-formats",
+      "-f",
+      "bestaudio/best",
+      ...ytdlpBaseArgs(),
+      url,
+    ],
     { signal, timeoutMs: 45_000 },
   );
 
