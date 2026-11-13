@@ -113,7 +113,9 @@ export default function QuotaBadge() {
                     : "bg-surface text-faint border border-line"
                 }`}
               >
-                {isLive ? "● Live Vercel API" : "Estimasi Internal"}
+                {isLive
+                  ? `● Live Vercel (${quota.debug?.username || "API"})`
+                  : "Estimasi Internal"}
               </span>
 
               <button
@@ -203,7 +205,7 @@ export default function QuotaBadge() {
               <span>
                 {isLive ? (
                   <>
-                    Data ditarik langsung dari <strong>Vercel REST API</strong>. Kuota akan direset otomatis pada{" "}
+                    Data ditarik langsung dari akun Vercel <strong>{quota.debug?.username ? `@${quota.debug.username}` : "Live API"}</strong>. Kuota akan direset otomatis pada{" "}
                     <strong className="text-fg">{quota.resetDate}</strong>.
                   </>
                 ) : quota.debug?.hasToken === false ? (

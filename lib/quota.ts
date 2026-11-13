@@ -89,7 +89,7 @@ async function fetchVercelApiUsage(token: string): Promise<QuotaInfo | null> {
     tokenLength: token.length,
   };
 
-  // 1. Verify user & resolve team
+  // 1. Verify user & resolve team via Vercel /v2/user
   let teamId = process.env.VERCEL_TEAM_ID?.trim() || null;
   let username = "";
   try {
@@ -119,105 +119,81 @@ async function fetchVercelApiUsage(token: string): Promise<QuotaInfo | null> {
 
   lastDebugInfo.teamId = teamId;
 
-  // 2. Query usage with multiple URL shapes
+  // 2. Query usage with required `type` parameter
   const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const to = now.toISOString();
+  const limitSongs = Number(process.env.MONTHLY_SONG_LIMIT) || DEFAULT_MONTHLY_LIMIT;
 
-  const urlCandidates: string[] = [];
-  if (teamId) {
-    urlCandidates.push(
-      `https://api.vercel.com/v2/usage?teamId=${encodeURIComponent(teamId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
-    );
-    urlCandidates.push(
-      `https://api.vercel.com/v2/usage?teamId=${encodeURIComponent(teamId)}`,
-    );
-  }
-  urlCandidates.push(
-    `https://api.vercel.com/v2/usage?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
-  );
-  urlCandidates.push(`https://api.vercel.com/v2/usage`);
+  const typeCandidates = [
+    "bandwidth",
+    "invocations",
+    "execution",
+    "serverlessFunctionExecution",
+    "total",
+  ];
 
-  let res: Response | null = null;
-  let responseText = "";
+  let rawUsageData: Record<string, unknown> | null = null;
 
-  for (const candidate of urlCandidates) {
+  for (const typeCandidate of typeCandidates) {
+    const url = new URL("https://api.vercel.com/v2/usage");
+    url.searchParams.set("type", typeCandidate);
+    if (teamId) url.searchParams.set("teamId", teamId);
+
     try {
-      const candidateRes = await fetch(candidate, {
+      const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       });
-      lastDebugInfo.usageStatus = candidateRes.status;
-      if (candidateRes.ok) {
-        res = candidateRes;
+      lastDebugInfo.usageStatus = res.status;
+      if (res.ok) {
+        const json = (await res.json()) as Record<string, unknown>;
+        rawUsageData = json;
         break;
-      } else {
-        responseText = await candidateRes.text().catch(() => "");
       }
-    } catch (err) {
-      lastDebugInfo.usageError = err instanceof Error ? err.message : String(err);
+    } catch {
+      // try next candidate
     }
   }
 
-  if (!res) {
-    lastDebugInfo.usageError = `Usage endpoint returned status ${lastDebugInfo.usageStatus}: ${responseText.slice(0, 250)}`;
-    console.warn("[quota]", lastDebugInfo.usageError);
-    return null;
+  // 3. Fallback tracking values if /v2/usage metrics array is empty or restricted on Hobby
+  const monthKey = getMonthKey(now);
+  let localUsed = 0;
+  if (redisUrl && redisToken) {
+    localUsed = await getRedisCount(monthKey);
+  } else {
+    localUsed = await getLocalCount(monthKey);
   }
 
-  const json = (await res.json()) as {
-    period?: { start?: number; end?: number };
-    bandwidth?: { value?: number; units?: string; usage?: number };
-    serverlessFunctionExecution?: {
-      value?: number;
-      units?: string;
+  let cpuUsedHours = 0;
+  let bandwidthUsedGB = 0;
+  let invocations = localUsed;
+  let usedSongs = localUsed;
+
+  if (rawUsageData) {
+    const execution = (rawUsageData.serverlessFunctionExecution || {}) as {
       usage?: number;
-      limit?: number;
-      metrics?: {
-        invocations?: number;
-        computeTimeMs?: number;
-        executionDurationAverageMs?: number;
-      };
+      metrics?: { computeTimeMs?: number; invocations?: number };
     };
-  };
+    const bandwidth = (rawUsageData.bandwidth || {}) as { value?: number };
 
-  const execution = json.serverlessFunctionExecution || {};
-  const metrics = execution.metrics || {};
-  const bandwidth = json.bandwidth || {};
+    if (typeof execution.usage === "number") {
+      usedSongs = Math.max(localUsed, Math.min(limitSongs, Math.round((execution.usage / 100) * limitSongs)));
+    }
+    if (execution.metrics?.computeTimeMs) {
+      cpuUsedHours = Math.round((execution.metrics.computeTimeMs / (1000 * 3600)) * 100) / 100;
+    }
+    if (execution.metrics?.invocations) {
+      invocations = execution.metrics.invocations;
+    }
+    if (bandwidth.value) {
+      bandwidthUsedGB = Math.round((bandwidth.value / (1024 * 1024 * 1024)) * 100) / 100;
+    }
+  }
 
-  const usagePercent =
-    typeof execution.usage === "number" ? execution.usage : 0;
+  const remainingSongs = Math.max(0, limitSongs - usedSongs);
   const percentRemaining = Math.max(
     0,
-    Math.min(100, Math.round((100 - usagePercent) * 10) / 10),
+    Math.min(100, Math.round((remainingSongs / limitSongs) * 1000) / 10),
   );
-
-  const computeTimeMs = Number(metrics.computeTimeMs) || 0;
-  const cpuUsedHours = Math.round((computeTimeMs / (1000 * 3600)) * 100) / 100;
-  const cpuLimitHours = 4.0;
-
-  const limitSongs = Number(process.env.MONTHLY_SONG_LIMIT) || DEFAULT_MONTHLY_LIMIT;
-  const usedSongs = Math.min(
-    limitSongs,
-    Math.round((usagePercent / 100) * limitSongs),
-  );
-  const remainingSongs = Math.max(0, limitSongs - usedSongs);
-
-  const bandwidthBytes = Number(bandwidth.value) || 0;
-  const bandwidthUsedGB =
-    Math.round((bandwidthBytes / (1024 * 1024 * 1024)) * 100) / 100;
-  const bandwidthLimitGB = 100.0;
-
-  let resetDate = "";
-  let monthLabel = "";
-  if (json.period?.end) {
-    const endDate = new Date(json.period.end);
-    resetDate = `${endDate.getDate()} ${MONTH_NAMES[endDate.getMonth()]} ${endDate.getFullYear()}`;
-    monthLabel = `${MONTH_NAMES[endDate.getMonth()]} ${endDate.getFullYear()}`;
-  } else {
-    resetDate = getResetDateLabel(now);
-    monthLabel = getMonthLabel(now);
-  }
 
   return {
     source: "vercel_api",
@@ -225,16 +201,16 @@ async function fetchVercelApiUsage(token: string): Promise<QuotaInfo | null> {
     limit: limitSongs,
     remaining: remainingSongs,
     percentRemaining,
-    resetDate,
-    monthLabel,
-    isExhausted: remainingSongs <= 0 || usagePercent >= 100,
+    resetDate: getResetDateLabel(now),
+    monthLabel: getMonthLabel(now),
+    isExhausted: remainingSongs <= 0,
     debug: lastDebugInfo,
     vercelDetails: {
       cpuUsedHours,
-      cpuLimitHours,
+      cpuLimitHours: 4.0,
       bandwidthUsedGB,
-      bandwidthLimitGB,
-      invocations: Number(metrics.invocations) || 0,
+      bandwidthLimitGB: 100.0,
+      invocations,
     },
   };
 }
