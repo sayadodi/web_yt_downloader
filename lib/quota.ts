@@ -352,3 +352,16 @@ export async function incrementQuota(amount = 1): Promise<QuotaInfo> {
 
   return getQuota();
 }
+
+/**
+ * Calculates quota units consumed by an audio based on its duration.
+ * 1 standard song unit = up to 4 minutes (240 seconds).
+ * E.g.:
+ * - 3 min song = 1 unit
+ * - 8 min song = 2 units
+ * - 50 min video = 13 units
+ */
+export function calculateQuotaUnits(durationSec: number): number {
+  if (!durationSec || durationSec <= 0) return 1;
+  return Math.max(1, Math.ceil(durationSec / 240));
+}

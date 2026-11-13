@@ -171,6 +171,15 @@ export default function SingleMode() {
             disabled={phase === "downloading"}
           />
 
+          {info.quotaUnits && info.quotaUnits > 1 ? (
+            <div className="flex items-center gap-2 rounded-control border border-line bg-surface/60 px-3 py-2 text-xs text-muted">
+              <span className="font-semibold text-accent">⚡ Kuota:</span>
+              <span>
+                Durasi panjang ({info.durationLabel}) akan memakai <strong>{info.quotaUnits} unit kuota lagu</strong>.
+              </span>
+            </div>
+          ) : null}
+
           {info.tooLong ? (
             <p className="rounded-control border border-danger/40 bg-danger-soft px-3 py-2.5 text-xs leading-relaxed text-danger">
               Durasi melebihi batas 2 jam, jadi file ini tidak bisa diproses.

@@ -585,6 +585,11 @@ export default function BatchMode() {
   );
 
   const pending = queue.filter((card) => card.status !== "done").length;
+  const pendingQuotaUnits = useMemo(() => {
+    return queue
+      .filter((card) => card.status !== "done")
+      .reduce((total, card) => total + (card.info?.quotaUnits || 1), 0);
+  }, [queue]);
   const loadingAny = cards.some((card) => card.status === "loading");
 
   const overall = useMemo(() => {
@@ -639,7 +644,12 @@ export default function BatchMode() {
               className="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-control bg-accent px-3 text-sm font-semibold text-accent-ink transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download size={15} aria-hidden="true" />
-              Unduh semua{pending > 0 ? ` (${pending})` : ""}
+              Unduh semua
+              {pending > 0
+                ? pendingQuotaUnits > pending
+                  ? ` (${pending} lagu · ${pendingQuotaUnits} kuota)`
+                  : ` (${pending})`
+                : ""}
             </button>
           )}
 

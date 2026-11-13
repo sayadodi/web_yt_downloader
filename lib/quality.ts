@@ -77,18 +77,21 @@ export function isFormatId(value: string): value is FormatId {
 /**
  * Which qualities we are willing to run for a given duration.
  *
- * MP3 needs a full decode + encode. On Vercel's 300s function limit a two hour
- * file cannot finish at high bitrates, so the ladder trims the options instead
- * of letting the request time out.
+ * MP3 needs a full decode + encode with ffmpeg. On Vercel Hobby's 60s function limit,
+ * a 50-minute file re-encoding at high bitrate will time out.
+ * M4A (direct stream copy without transcode) finishes in seconds for any duration up to 2 hours!
  */
 export function allowedFormats(durationSec: number): FormatId[] {
-  if (durationSec <= 60 * 60) {
+  if (durationSec <= 15 * 60) {
     return ["m4a", "mp3_320", "mp3_192", "mp3_128", "mp3_96"];
   }
-  if (durationSec <= 90 * 60) {
+  if (durationSec <= 30 * 60) {
     return ["m4a", "mp3_192", "mp3_128", "mp3_96"];
   }
-  return ["m4a", "mp3_128", "mp3_96"];
+  if (durationSec <= 60 * 60) {
+    return ["m4a", "mp3_96"];
+  }
+  return ["m4a"];
 }
 
 export function isAllowed(format: FormatId, durationSec: number): boolean {
@@ -114,7 +117,10 @@ export function resolveFormat(requested: FormatId, durationSec: number): FormatI
 export function disabledReason(format: FormatId, durationSec: number): string {
   if (durationSec > MAX_DURATION_SEC) return "Durasi melebihi batas 2 jam.";
   if (format === "m4a") return "Tidak tersedia untuk video ini.";
-  return "Durasi terlalu panjang untuk kualitas ini.";
+  if (durationSec > 30 * 60) {
+    return "Untuk video panjang (>30m), disarankan M4A Original agar selesai cepat tanpa batas waktu Vercel (60s).";
+  }
+  return "Durasi terlalu panjang untuk bitrate ini agar proses selesai tepat waktu.";
 }
 
 export function estimateSizeMB(kbps: number, durationSec: number): number {

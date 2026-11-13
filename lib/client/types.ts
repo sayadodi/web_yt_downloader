@@ -18,6 +18,7 @@ export type VideoInfoResponse = {
   tooLong: boolean;
   maxDuration: number;
   qualities: QualityOption[];
+  quotaUnits: number;
 };
 
 export type ApiErrorPayload = {

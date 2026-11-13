@@ -19,7 +19,7 @@ import {
 } from "@/lib/quality";
 import { parseYouTubeUrl } from "@/lib/youtube-url";
 import { runYtdlp, YtdlpError, ytdlpBaseArgs } from "@/lib/ytdlp";
-import { getQuota, incrementQuota } from "@/lib/quota";
+import { calculateQuotaUnits, getQuota, incrementQuota } from "@/lib/quota";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -179,6 +179,17 @@ export async function GET(request: Request) {
       );
     }
 
+    const quotaUnits = calculateQuotaUnits(info.duration);
+    if (quota.remaining < quotaUnits) {
+      return jsonResponse(
+        {
+          error: `Sisa kuota server bulan ini (${quota.remaining} lagu) tidak mencukupi untuk video berdurasi ${info.durationLabel} ini (membutuhkan ${quotaUnits} lagu). Kuota direset pada ${quota.resetDate}.`,
+          code: "QUOTA_INSUFFICIENT",
+        },
+        429,
+      );
+    }
+
     const format = isAllowed(requested, info.duration)
       ? requested
       : resolveFormat(requested, info.duration);
@@ -256,8 +267,8 @@ export async function GET(request: Request) {
       format,
     );
 
-    // Track monthly quota
-    void incrementQuota(1).catch((err) =>
+    // Track monthly quota based on duration units
+    void incrementQuota(quotaUnits).catch((err) =>
       console.warn("[download] incrementQuota failed:", err),
     );
 

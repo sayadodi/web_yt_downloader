@@ -1,4 +1,5 @@
 import { ApiError, friendlyYtdlpError } from "./errors";
+import { calculateQuotaUnits } from "./quota";
 import {
   allowedFormats,
   disabledReason,
@@ -31,6 +32,7 @@ export type VideoInfoResponse = {
   tooLong: boolean;
   maxDuration: number;
   qualities: QualityOption[];
+  quotaUnits: number;
 };
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
@@ -139,6 +141,7 @@ export async function getVideoInfo(
     tooLong,
     maxDuration: MAX_DURATION_SEC,
     qualities,
+    quotaUnits: calculateQuotaUnits(duration),
   };
 
   remember(videoId, value);

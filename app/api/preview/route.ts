@@ -5,6 +5,7 @@ import path from "node:path";
 import { jsonResponse } from "@/lib/http";
 import { parseYouTubeUrl } from "@/lib/youtube-url";
 import { prepare, YTDLP_PATH, ytdlpBaseArgs } from "@/lib/ytdlp";
+import { getQuota } from "@/lib/quota";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -19,6 +20,17 @@ export async function GET(request: Request) {
     return jsonResponse(
       { error: "Hanya link YouTube yang didukung.", code: "INVALID_URL" },
       400,
+    );
+  }
+
+  const quota = await getQuota();
+  if (quota.isExhausted) {
+    return jsonResponse(
+      {
+        error: `Kuota bulanan server telah habis. Fitur preview dinonaktifkan hingga ${quota.resetDate}.`,
+        code: "QUOTA_EXHAUSTED",
+      },
+      429,
     );
   }
 

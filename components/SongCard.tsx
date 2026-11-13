@@ -147,6 +147,12 @@ export default function SongCard({ info }: { info: VideoInfoResponse }) {
             {info.durationLabel}
           </span>
 
+          {info.quotaUnits && info.quotaUnits > 1 ? (
+            <span className="tnum rounded bg-surface border border-line px-1.5 py-0.5 text-[10px] text-accent">
+              {info.quotaUnits} kuota
+            </span>
+          ) : null}
+
           {/* Quick Preview Text Control */}
           <button
             type="button"
