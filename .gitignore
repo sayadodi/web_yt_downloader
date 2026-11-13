@@ -1,0 +1,21 @@
+node_modules
+.next
+out
+build
+.DS_Store
+*.pem
+.env*
+!.env.example
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+# yt-dlp binary is downloaded by scripts/fetch-binaries.mjs
+bin/
+
+# Local quota cache
+.ytaudio-quota.json
+cookies.txt
+
+# OpenCode skills and metadata
+.opencode/
