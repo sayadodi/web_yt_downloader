@@ -45,11 +45,19 @@ export default function QuotaBadge() {
       }
     };
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       window.removeEventListener("ytaudio-quota-updated", handleUpdated);
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
@@ -78,68 +86,79 @@ export default function QuotaBadge() {
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="inline-flex cursor-pointer items-center gap-2 rounded-control border border-line bg-surface/80 px-2.5 py-1.5 text-xs text-muted transition-colors hover:border-line/80 hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 sm:gap-2 rounded-control border border-line bg-surface/80 px-2 sm:px-2.5 py-1.5 text-xs text-muted transition-colors hover:border-line/80 hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         title="Lihat detail kuota server Vercel bulan ini"
       >
         <span
           className={`size-2 shrink-0 rounded-full ${dotColor} ${isCritical ? "animate-pulse" : ""}`}
           aria-hidden="true"
         />
-        <Zap size={13} className="text-accent" aria-hidden="true" />
+        <Zap size={13} className="text-accent shrink-0" aria-hidden="true" />
         <span className="tnum font-medium text-fg">
           {quota.remaining.toLocaleString("id-ID")}
         </span>
-        <span className="text-faint">/ {quota.limit.toLocaleString("id-ID")} lagu</span>
+        <span className="text-faint hidden sm:inline">
+          / {quota.limit.toLocaleString("id-ID")} lagu
+        </span>
+        <span className="text-faint sm:hidden">lagu</span>
       </button>
 
       {open ? (
-        <div
-          role="dialog"
-          aria-label="Informasi Kuota Server"
-          className="absolute right-0 top-full z-50 mt-2 w-84 rounded-card border border-line bg-surface-2 p-4 shadow-xl shadow-black/40 animate-in fade-in zoom-in-95 duration-150"
-        >
-          <div className="flex items-center justify-between pb-2 border-b border-line">
-            <div className="flex items-center gap-1.5">
-              <Cpu size={15} className="text-accent" aria-hidden="true" />
-              <h3 className="text-xs font-semibold text-fg">
-                Kuota Serverless Vercel
-              </h3>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                  isLive
-                    ? "bg-accent/15 text-accent border border-accent/30"
-                    : "bg-surface text-faint border border-line"
-                }`}
-              >
-                {isLive
-                  ? `● Live Vercel (${quota.debug?.username || "API"})`
-                  : "Estimasi Internal"}
-              </span>
+        <>
+          {/* Backdrop on mobile */}
+          <div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px] sm:hidden animate-in fade-in duration-150"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
 
-              <button
-                type="button"
-                onClick={() => void loadQuota()}
-                disabled={loading}
-                aria-label="Refresh kuota"
-                className="grid size-6 place-items-center rounded text-faint hover:text-fg hover:bg-surface cursor-pointer"
-              >
-                <RefreshCw
-                  size={12}
-                  className={loading ? "animate-spin" : ""}
-                />
-              </button>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Tutup"
-                className="grid size-6 place-items-center rounded text-faint hover:text-fg hover:bg-surface cursor-pointer"
-              >
-                <X size={13} />
-              </button>
+          <div
+            role="dialog"
+            aria-label="Informasi Kuota Server"
+            className="fixed left-4 right-4 top-1/2 z-50 -translate-y-1/2 max-w-sm mx-auto rounded-card border border-line bg-surface-2 p-4 shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:translate-y-0 sm:w-84 sm:max-w-none sm:shadow-xl sm:shadow-black/40 animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center justify-between pb-2.5 border-b border-line gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Cpu size={15} className="text-accent shrink-0" aria-hidden="true" />
+                <h3 className="text-xs font-semibold text-fg truncate">
+                  Kuota Serverless Vercel
+                </h3>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span
+                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                    isLive
+                      ? "bg-accent/15 text-accent border border-accent/30"
+                      : "bg-surface text-faint border border-line"
+                  }`}
+                >
+                  {isLive
+                    ? `● Live (${quota.debug?.username || "Vercel"})`
+                    : "Estimasi"}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => void loadQuota()}
+                  disabled={loading}
+                  aria-label="Refresh kuota"
+                  className="grid size-6 place-items-center rounded text-faint hover:text-fg hover:bg-surface cursor-pointer transition-colors"
+                >
+                  <RefreshCw
+                    size={12}
+                    className={loading ? "animate-spin" : ""}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  aria-label="Tutup"
+                  className="grid size-6 place-items-center rounded text-faint hover:text-fg hover:bg-surface cursor-pointer transition-colors"
+                >
+                  <X size={13} />
+                </button>
+              </div>
             </div>
-          </div>
 
           <div className="mt-3 flex flex-col gap-2.5">
             <div className="flex items-baseline justify-between text-xs">
@@ -226,7 +245,8 @@ export default function QuotaBadge() {
             </div>
           </div>
         </div>
-      ) : null}
+      </>
+    ) : null}
     </div>
   );
 }

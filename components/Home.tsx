@@ -18,17 +18,18 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>("single");
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 pb-10 pt-8 sm:pt-12">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-accent text-accent-ink">
-            <Music2 size={20} aria-hidden="true" />
+    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 pb-10 pt-6 sm:pt-12">
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <span className="grid size-9 sm:size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-ink">
+            <Music2 size={18} className="sm:hidden" aria-hidden="true" />
+            <Music2 size={20} className="hidden sm:block" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="font-display text-xl leading-none tracking-tight text-fg">
+            <p className="font-display text-lg sm:text-xl font-bold leading-none tracking-tight text-fg truncate">
               YT Audio
             </p>
-            <p className="mt-1 text-xs text-faint">
+            <p className="mt-1 text-[11px] sm:text-xs text-faint truncate">
               Unduh lagu dari YouTube jadi MP3
             </p>
           </div>

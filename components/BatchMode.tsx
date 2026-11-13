@@ -654,9 +654,9 @@ export default function BatchMode() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-line bg-surface/50 p-2 text-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-control border border-line bg-surface/50 p-2.5 text-xs">
         <span className="font-medium text-muted">Mode simpan unduhan batch:</span>
-        <div className="flex items-center gap-1">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5">
           <button
             type="button"
             onClick={() => {
@@ -665,14 +665,14 @@ export default function BatchMode() {
             }}
             disabled={running}
             className={[
-              "flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 font-medium transition-colors",
+              "flex cursor-pointer items-center justify-center gap-1.5 rounded-[6px] px-2.5 py-1.5 font-medium transition-colors text-center text-[11px] sm:text-xs",
               outputMode === "direct"
                 ? "bg-surface-2 text-fg shadow-[inset_0_0_0_1px_var(--color-line)]"
                 : "text-faint hover:text-fg",
             ].join(" ")}
           >
-            <Save size={13} aria-hidden="true" />
-            Satu per satu (Hemat RAM / HP)
+            <Save size={13} aria-hidden="true" className="shrink-0" />
+            <span>Satu per satu</span>
           </button>
           <button
             type="button"
@@ -682,14 +682,14 @@ export default function BatchMode() {
             }}
             disabled={running}
             className={[
-              "flex cursor-pointer items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 font-medium transition-colors",
+              "flex cursor-pointer items-center justify-center gap-1.5 rounded-[6px] px-2.5 py-1.5 font-medium transition-colors text-center text-[11px] sm:text-xs",
               outputMode === "zip"
                 ? "bg-surface-2 text-fg shadow-[inset_0_0_0_1px_var(--color-line)]"
                 : "text-faint hover:text-fg",
             ].join(" ")}
           >
-            <FileArchive size={13} aria-hidden="true" />
-            Bundel ZIP
+            <FileArchive size={13} aria-hidden="true" className="shrink-0" />
+            <span>Bundel ZIP</span>
           </button>
         </div>
       </div>
