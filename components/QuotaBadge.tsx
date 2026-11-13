@@ -224,12 +224,20 @@ export default function QuotaBadge() {
               <span className="text-faint">Status Cookies YouTube:</span>
               <span
                 className={`font-medium ${
-                  quota.debug?.hasCookies
+                  quota.debug?.hasCookies && quota.debug?.hasLoginCookies !== false
                     ? "text-accent"
-                    : "text-amber-400"
+                    : quota.debug?.hasCookies
+                    ? "text-amber-400"
+                    : "text-faint"
                 }`}
               >
-                {quota.debug?.hasCookies ? "● Terhubung (Bypass Bot OK)" : "○ Belum terpasang"}
+                {quota.debug?.hasCookies
+                  ? quota.debug?.cookieCount
+                    ? quota.debug.hasLoginCookies
+                      ? `● Terhubung (${quota.debug.cookieCount} cookies, Login OK)`
+                      : `⚠ ${quota.debug.cookieCount} cookies (Belum Login)`
+                    : "● Terhubung (Bypass Bot OK)"
+                  : "○ Belum terpasang"}
               </span>
             </div>
 

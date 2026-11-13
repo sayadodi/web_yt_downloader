@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { resolveCookiesFile } from "./ytdlp";
+import { getCookieStatus, resolveCookiesFile } from "./ytdlp";
 
 export type QuotaInfo = {
   source: "vercel_api" | "internal_estimate";
@@ -22,6 +22,8 @@ export type QuotaInfo = {
     usageStatus?: number;
     usageError?: string;
     hasCookies?: boolean;
+    cookieCount?: number;
+    hasLoginCookies?: boolean;
   };
   vercelDetails?: {
     cpuUsedHours?: number;
@@ -86,10 +88,13 @@ function getResetDateLabel(date: Date): string {
  * Directly queries the official Vercel REST API for live account resource usage.
  */
 async function fetchVercelApiUsage(token: string): Promise<QuotaInfo | null> {
+  const cookieStatus = getCookieStatus();
   lastDebugInfo = {
     hasToken: true,
     tokenLength: token.length,
-    hasCookies: Boolean(resolveCookiesFile()),
+    hasCookies: cookieStatus.active,
+    cookieCount: cookieStatus.count,
+    hasLoginCookies: cookieStatus.hasLogin,
   };
 
   // 1. Verify user & resolve team via Vercel /v2/user
@@ -305,9 +310,12 @@ export async function getQuota(): Promise<QuotaInfo> {
       console.warn("[quota] Failed to fetch live Vercel usage, falling back:", err);
     }
   } else {
+    const cookieStatus = getCookieStatus();
     lastDebugInfo = {
       hasToken: false,
-      hasCookies: Boolean(resolveCookiesFile()),
+      hasCookies: cookieStatus.active,
+      cookieCount: cookieStatus.count,
+      hasLoginCookies: cookieStatus.hasLogin,
     };
   }
 
