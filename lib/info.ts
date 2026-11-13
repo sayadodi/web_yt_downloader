@@ -84,6 +84,7 @@ export async function getVideoInfo(
         friendlyYtdlpError(error.stderr),
         502,
         "INFO_FAILED",
+        error.stderr.slice(-2000),
       );
     }
     throw error;

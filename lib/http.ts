@@ -13,7 +13,14 @@ export function jsonResponse(data: unknown, status = 200): Response {
 
 export function errorResponse(error: unknown): Response {
   if (error instanceof ApiError) {
-    return jsonResponse({ error: error.message, code: error.code }, error.status);
+    return jsonResponse(
+      {
+        error: error.message,
+        code: error.code,
+        ...(error.details ? { details: error.details } : {}),
+      },
+      error.status,
+    );
   }
 
   if (error instanceof YtdlpError) {

@@ -260,7 +260,7 @@ export function ytdlpBaseArgs(): string[] {
     "--retries",
     "3",
     "--js-runtimes",
-    "node",
+    `node:${process.execPath}`,
     "--remote-components",
     "ejs:github",
   ];
