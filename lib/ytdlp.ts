@@ -278,10 +278,9 @@ export function ytdlpBaseArgs(): string[] {
     args.push("--cookies", cookiePath);
   }
 
-  const customClients = process.env.YTDLP_PLAYER_CLIENTS?.trim();
-  if (customClients) {
-    args.push("--extractor-args", `youtube:player_client=${customClients}`);
-  }
+  const defaultClients = "tv_samsung,web_embedded,web";
+  const customClients = process.env.YTDLP_PLAYER_CLIENTS?.trim() || defaultClients;
+  args.push("--extractor-args", `youtube:player_client=${customClients}`);
 
   const ffmpeg = resolveFfmpegPath();
   if (ffmpeg) args.push("--ffmpeg-location", ffmpeg);
